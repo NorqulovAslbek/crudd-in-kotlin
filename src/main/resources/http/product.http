@@ -1,0 +1,29 @@
+### create product
+POST localhost:8080/product
+Content-Type: application/json
+
+{
+  "name": "samsung",
+  "categoryId": 1,
+  "count": 10,
+  "amount": 10000
+}
+
+### update product
+PUT localhost:8080/product/update/1
+Content-Type: application/json
+
+{
+  "count": 4
+}
+
+### delete product
+DELETE localhost:8080/product/delete/1
+
+### get product by id
+GET localhost:8080/product/1
+Content-Type: application/json
+
+### get all pagination
+GET localhost:8080/product/pagination?page=1&size=3
+Content-Type: application/json

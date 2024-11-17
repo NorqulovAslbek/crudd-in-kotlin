@@ -1,0 +1,30 @@
+### create category
+POST localhost:8080/category
+Content-Type: application/json
+
+{
+  "name": "Kompyuter",
+  "description": "turli janrdagi kitoblar",
+  "orderNumber": 1
+}
+
+### get by id category
+GET localhost:8080/category/1
+Content-Type: application/json
+
+### update category
+PUT localhost:8080/category/update/1
+Content-Type: application/json
+
+{
+  "description": "Adabiy kitoblar toplami",
+  "name": "Book"
+}
+
+### delete by id
+DELETE localhost:8080/category/delete/1
+Content-Type: application/json
+
+### get all pagination
+GET localhost:8080/category/pagenation?page=1&size=2
+Content-Type: application/json

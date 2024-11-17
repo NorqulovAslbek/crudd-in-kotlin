@@ -1,0 +1,38 @@
+#### create user
+POST localhost:8080/users/add
+Content-Type: application/json
+
+{
+  "username": "Asl",
+  "fullName": "Aslbek Norqulov",
+  "balance": 100000
+}
+
+### get by id
+GET localhost:8080/users/1
+
+### update by id users
+PUT localhost:8080/users/update/1
+Content-Type: application/json
+
+{
+  "username": "Aslbek",
+  "fullName": "Aslbek Norqulov"
+}
+
+### pagination user
+GET localhost:8080/users/pagination?page=1&size=1
+Content-Type: application/json
+
+
+### add balance
+POST localhost:8080/users/1/add-balance
+Content-Type: application/json
+
+{
+  "balance": 15000
+}
+
+### get user transaction id
+GET localhost:8080/users/transaction/1
+

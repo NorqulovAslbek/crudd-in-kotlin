@@ -1,0 +1,19 @@
+### product sotib olish
+POST localhost:8080/transaction/1
+Content-Type: application/json
+
+{
+  "count": 4,
+  "productId": 2
+}
+
+### foydalanuvchi sotib olgan productlar tarixini korish
+GET localhost:8080/transaction/history/1
+
+### foydalanuvchi transaction boyicha olingan mahsulotlarni kora olishi
+GET localhost:8080/transaction
+Content-Type: application/json
+
+{
+  "transactionId": 1
+}
