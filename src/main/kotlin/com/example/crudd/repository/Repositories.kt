@@ -9,50 +9,6 @@ import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 
-//
-//@NoRepositoryBean
-//interface BaseRepository<T : BaseEntity> : JpaRepository<T, Long>, JpaSpecificationExecutor<T> {
-//    fun findByIdAndDeletedFalse(id: Long): T?
-//    fun trash(id: Long): T?
-//    fun trashList(ids: List<Long>): List<T?>
-//    fun findAllNotDeleted(): List<T>
-//    fun findAllNotDeleted(pageable: Pageable): List<T>
-//    fun findAllNotDeletedForPageable(pageable: Pageable): Page<T>
-//    fun saveAndRefresh(t: T): T
-//}
-//
-//
-//class BaseRepositoryImpl<T : BaseEntity>(
-//    entityInformation: JpaEntityInformation<T, Long>,
-//    private val entityManager: EntityManager
-//) : SimpleJpaRepository<T, Long>(entityInformation, entityManager), BaseRepository<T> {
-//
-//    val isNotDeletedSpecification = Specification<T> { root, _, cb -> cb.equal(root.get<Boolean>("deleted"), false) }
-//
-//    override fun findByIdAndDeletedFalse(id: Long) = findByIdOrNull(id)?.run { if (deleted) null else this }
-//
-//    @Transactional
-//    override fun trash(id: Long): T? = findByIdOrNull(id)?.run {
-//        deleted = true
-//        save(this)
-//    }
-//
-//    override fun findAllNotDeleted(): List<T> = findAll(isNotDeletedSpecification)
-//    override fun findAllNotDeleted(pageable: Pageable): List<T> = findAll(isNotDeletedSpecification, pageable).content
-//    override fun findAllNotDeletedForPageable(pageable: Pageable): Page<T> =
-//        findAll(isNotDeletedSpecification, pageable)
-//
-//    override fun trashList(ids: List<Long>): List<T?> = ids.map { trash(it) }
-//
-//    @Transactional
-//    override fun saveAndRefresh(t: T): T {
-//        val savedEntity = save(t) // JpaRepository save method
-//        entityManager.refresh(savedEntity) // Manually refresh the entity after saving
-//        return savedEntity
-//    }
-//}
-
-
 @Repository
 interface UserRepository : JpaRepository<Users, Long> {
     fun findByUsernameAndDeletedFalse(userName: String): Users?
