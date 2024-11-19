@@ -1,13 +1,13 @@
 package com.example.crudd.service
 
 import com.example.crudd.dto.*
+import com.example.crudd.dto.UserResponse.Companion.toDto
 import com.example.crudd.entity.*
 import com.example.crudd.exp.AppBadException
 import com.example.crudd.repository.*
 import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
 import org.springframework.data.domain.Page
-import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
@@ -37,41 +37,39 @@ class UserServiceImpl(
 ) : UserService {
     override fun create(request: UserCreateRequest) {
         val existingUser = userRepository.findByUsernameAndDeletedFalse(request.username)
-        if (existingUser != null) throw AppBadException("bunaqa username li user allaqachon mavjud!!")
-        if (request.balance.toDouble() < 0) throw AppBadException("user balanci manfiy bola olmaydi!")
-        val user = Users(request.fullName, request.username, request.balance)
-        userRepository.save(user)
+        if (existingUser != null) throw AppBadException("bunaqa user allaqachon bor")//throw UserAlreadyExistsException()
+        val user = Users(request.fullName, request.username)
+        userRepository.saveAndRefresh(user)
     }
 
     @Transactional
     override fun update(id: Long, request: UserUpdateRequest) {
         val userEntity = userRepository.findByIdAndDeletedFalse(id)
-            ?: throw AppBadException("bunday  id lik ysni $id teng user mavjud emas!")
-        request.username?.let { userEntity.username = it }
+            ?: throw AppBadException("not found user")//throw UserNotFoundExistsException()
+        if (request.username != null && userRepository.findByUsernameAndDeletedFalse(request.username!!) == null) {
+            request.username?.let { userEntity.username = it }
+        }
         request.fullName?.let { userEntity.fullName = it }
-        userRepository.save(userEntity)
+        userRepository.saveAndRefresh(userEntity)
     }
 
 
     @Transactional
     override fun delete(id: Long) {
-        val option = userRepository.findById(id)
-        if (!option.isEmpty) {
-            userRepository.deleteById(id)
-            return
-        }
-        throw AppBadException("bunaqa id li id=$id user mavjud emas")
+        userRepository.trash(id) ?: throw AppBadException("user not found")
+        //  throw UserNotFoundExistsException()
     }
 
     override fun getOne(id: Long): UserResponse {
         val userEntity = userRepository.findByIdAndDeletedFalse(id)
-            ?: throw AppBadException("bunaqa id li id=$id user mavjud emas!")
+            ?: throw AppBadException("user not fount") //throw UserNotFoundExistsException()
+        userEntity.toDto()
         return UserResponse(userEntity.id!!, userEntity.fullName, userEntity.username, userEntity.balance)
     }
 
     override fun getAll(pageable: Pageable): Page<UserResponse> {
-        val allUsers = userRepository.findAllByDeletedFalse(pageable)
-        val userList = allUsers.content.map { users ->
+        val allUsers = userRepository.findAllNotDeletedForPageable(pageable)
+        return allUsers.map { users ->
             UserResponse(
                 id = users.id!!,
                 fullName = users.fullName,
@@ -79,7 +77,7 @@ class UserServiceImpl(
                 balance = users.balance
             )
         }
-        return PageImpl(userList, pageable, allUsers.totalElements)
+//        return PageImpl(userList, pageable, allUsers.totalElements)
     }
 
 
@@ -90,12 +88,12 @@ class UserServiceImpl(
     override fun addBalance(id: Long, balance: BigDecimal) {
         val user =
             userRepository.findByIdAndDeletedFalse(id)
-                ?: throw AppBadException("bunaqa id=${id} lik user topilmadi!")
+                ?: throw AppBadException("user not found") //throw UserNotFoundExistsException()
         user.balance += balance
         userRepository.save(user)
         val userEntityById = entityManager.getReference(Users::class.java, id)
         val userTransaction = UserPaymentTransaction(balance, userEntityById)
-        userPaymentTransactionRepository.save(userTransaction)
+        userPaymentTransactionRepository.saveAndRefresh(userTransaction)
     }
 
 
@@ -135,16 +133,15 @@ class TransactionServiceImpl(
     private val transactionItemRepository: TransactionItemRepository
 
 ) : TransactionService {
+    @Transactional
     override fun purchaseProduct(userId: Long, productId: Long, count: Long) {
         val user = userRepository.findByIdAndDeletedFalse(userId)
-            ?: throw AppBadException("Foydalanuvchi id=$userId topilmadi!")
+            ?: throw AppBadException("not found user") //throw UserNotFoundExistsException()
         val product = productRepository.findByIdAndDeletedFalse(productId)
-            ?: throw AppBadException("product id=$productId topilmadi!")
-        if (product.count < count) throw AppBadException(
-            "Faqatgina ${product.count} dona mahsulot mavjud, lekin siz $count dona so'radingiz!"
-        )
+            ?: throw AppBadException("product not found") //throw ProductNotFoundExistsException()
+        if (product.count < count) throw AppBadException("product soni yetarli emas")//throw ProductQuantityExceeded()
         val totalAmount = product.amount * BigDecimal(count)
-        if (totalAmount > user.balance) throw AppBadException("${totalAmount - user.balance} summa yetarli emas, Hisobingizni toldiring!!")
+        if (totalAmount > user.balance) throw AppBadException("palance yetarli emas")//throw InsufficientBalance()
 
         user.balance -= totalAmount
         product.count -= count
@@ -154,7 +151,7 @@ class TransactionServiceImpl(
             user = user,
             totalAmount = totalAmount
         )
-        transactionRepository.save(transaction)
+        transactionRepository.saveAndRefresh(transaction)
 
         val transactionItem = TransactionItem(
             product = product,
@@ -163,12 +160,13 @@ class TransactionServiceImpl(
             totalAmount = totalAmount,
             transaction = transaction
         )
-        transactionItemRepository.save(transactionItem)
+        transactionItemRepository.saveAndRefresh(transactionItem)
     }
 
+    @Transactional
     override fun getUserPurchaseHistory(userId: Long): List<UserPurchaseHistory> {
         val transactionHistory = transactionItemRepository.findByUserId(userId)
-        if (transactionHistory.isEmpty()) throw AppBadException("foydalanuvchi mahsulotlar boyicha sotib olish tarixi topilmadi!")
+        if (transactionHistory.isEmpty()) throw AppBadException("userid si boyicha transactionlar topilmadi")//throw UserPurchaseHistoryNotFoundException()
         val purchaseHistoryList = LinkedList<UserPurchaseHistory>()
         transactionHistory.map { transactionItem ->
             purchaseHistoryList.add(
@@ -185,6 +183,7 @@ class TransactionServiceImpl(
         return purchaseHistoryList
     }
 
+    @Transactional
     override fun getPurchasedProductsByUserTransaction(transactionId: Long): List<ProductResponseHistory> {
         val products = transactionItemRepository.getByTransactionIdProduct(transactionId)
         val productList = LinkedList<ProductResponseHistory>()
@@ -220,52 +219,44 @@ class CategoryServiceImpl(
     override fun create(request: CategoryCreateRequest) {
         request.run {
             val categoryEntity = categoryRepository.findByNameAndDeletedFalse(request.name)
-            if (categoryEntity != null) throw AppBadException("bunday name=$name lik category mavjud!!")
+            if (categoryEntity != null) throw AppBadException("category allaqachon bor")//throw CategoryAlreadyExistsException()
         }
-        categoryRepository.save(Category(request.name, request.orderNumber, request.description))
+        categoryRepository.saveAndRefresh(Category(request.name, request.orderNumber, request.description))
     }
 
     @Transactional
     override fun update(id: Long, request: CategoryUpdateRequest) {
         val categoryEntity =
-            categoryRepository.findCategoryByIdAndDeletedFalse(id)
-                ?: throw AppBadException("bunday id li id=$id category yoq")
+            categoryRepository.findByIdAndDeletedFalse(id)
+                ?: throw AppBadException("category topilmadi") //throw CategoryNotFoundExistException()
         request.name?.let { categoryEntity.name = it }
         request.order?.let { categoryEntity.orderNumber = it }
         request.description?.let { categoryEntity.description = it }
-        categoryRepository.save(categoryEntity)
+        categoryRepository.saveAndRefresh(categoryEntity)
     }
 
     @Transactional
     override fun delete(id: Long) {
-        val optional = categoryRepository.findById(id)
-        if (optional.isPresent) {
-            categoryRepository.deleteById(id)
-            return
-        }
-        throw AppBadException("bunday id=$id ga teng bolgan category yoq!!")
+        categoryRepository.trash(id) ?: throw AppBadException("category topilmadi")
+//        throw CategoryNotFoundExistException()
     }
 
     override fun getOne(id: Long): CategoryResponse {
-        val category = categoryRepository.findCategoryByIdAndDeletedFalse(id)
-            ?: throw AppBadException("bunaqa id lik id=$id category mavjudmas!")
+        val category = categoryRepository.findByIdAndDeletedFalse(id)
+            ?: throw AppBadException("category topilmadi!")//throw CategoryNotFoundExistException()
         return CategoryResponse(category.id!!, category.name, category.orderNumber, category.description)
     }
 
     override fun getAll(pageable: Pageable): Page<CategoryResponse> {
-        val categoryListEntity = categoryRepository.findAllByDeletedFalse(pageable)
-        val categoryList = LinkedList<CategoryResponse>()
-        categoryListEntity.content.map { category ->
-            categoryList.add(
-                CategoryResponse(
-                    id = category.id!!,
-                    name = category.name,
-                    order = category.orderNumber,
-                    description = category.description
-                )
+        val categoryListEntity = categoryRepository.findAllNotDeletedForPageable(pageable)
+        return categoryListEntity.map { category ->
+            CategoryResponse(
+                id = category.id!!, // Ensure `id` is not null
+                name = category.name,
+                order = category.orderNumber,
+                description = category.description
             )
         }
-        return PageImpl(categoryList, pageable, categoryListEntity.totalElements)
     }
 
 }
@@ -286,64 +277,55 @@ class ProductServiceImpl(
     private val categoryRepository: CategoryRepository,
 ) : ProductService {
     override fun create(request: ProductCreateRequest) {
-        val category = categoryRepository.findById(request.categoryId).orElseThrow {
-            AppBadException("bunday id=${request.categoryId} lik category mavjud emas!!")
-        }
-        if (request.count < 0) throw AppBadException("product count ti manfiy bo'la olmaydi!!")
+        val category = categoryRepository.findByIdAndDeletedFalse(request.categoryId)
+            ?: throw AppBadException("category topilmadi")// CategoryNotFoundExistException()
+
         val product = Product(
             name = request.name,
             count = request.count,
             category = category,
             amount = request.amount
         )
-        productRepository.save(product)
+//        val product = request.toEntity(category)
+        productRepository.saveAndRefresh(product)
     }
 
 
     @Transactional
     override fun update(id: Long, request: ProductUpdateRequest) {
         val product = productRepository.findByIdAndDeletedFalse(id)
-            ?: throw AppBadException("bunaqa id=$id lik product mavjud emas!!")
-        if (request.count!! < 0) throw AppBadException("product count ti manfiy bo'la olmaydi!!")
+            ?: throw AppBadException("product topilmadi.") //throw ProductNotFoundExistsException()
         request.name?.let { product.name = it }
         request.count?.let { product.count = it }
         request.categoryId?.let { product.category.id = it }
         request.amount?.let { product.amount = it }
 
-        productRepository.save(product)
+        productRepository.saveAndRefresh(product)
     }
 
     @Transactional
     override fun delete(id: Long) {
-        val optional = productRepository.findById(id)
-        if (optional.isPresent) {
-            productRepository.deleteById(id)
-            return
-        }
-        throw AppBadException("bunday id=${id} lik product mavjud emas!!")
+        productRepository.trash(id) ?: throw AppBadException("product topilmadi!")
+        //  throw ProductNotFoundExistsException()
     }
 
     override fun getOne(id: Long): ProductResponse {
         return productRepository.findByIdAndDeletedFalse(id)?.let {
             ProductResponse(name = it.name, id = it.id!!, count = it.count, categoryId = it.category.id!!)
-        } ?: throw AppBadException("bunday id=${id} lik product mavjud emas!!")
+        } ?: throw AppBadException("product topilmadi")//throw ProductNotFoundExistsException()
 
     }
 
     override fun getAll(pageable: Pageable): Page<ProductResponse> {
-        val pageableAll = productRepository.findAllByDeletedFalse(pageable)
-        val productList = LinkedList<ProductResponse>()
-        pageableAll.content.map { product ->
-            productList.add(
-                ProductResponse(
-                    id = product.id!!,
-                    name = product.name,
-                    count = product.count,
-                    categoryId = product.category.id!!
-                )
+        val pageableAll = productRepository.findAllNotDeletedForPageable(pageable)
+        return pageableAll.map { product ->
+            ProductResponse(
+                id = product.id!!,
+                name = product.name,
+                count = product.count,
+                categoryId = product.category.id!!
             )
         }
-        return PageImpl(productList, pageable, pageableAll.totalElements)
     }
 
 }

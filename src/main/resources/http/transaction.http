@@ -3,8 +3,8 @@ POST localhost:8080/transaction/1
 Content-Type: application/json
 
 {
-  "count": 4,
-  "productId": 2
+  "count": -12,
+  "productId": 1
 }
 
 ### foydalanuvchi sotib olgan productlar tarixini korish

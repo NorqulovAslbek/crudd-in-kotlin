@@ -180,8 +180,7 @@ class Users(
     @Column(nullable = false, unique = true)// bu foydalanuvchining username bu field unique va not null
     var username: String,
     @Column(nullable = false) // bu userni balance bu filed null bomasligi kerak
-    @Min(0)
-    var balance: BigDecimal
+    var balance: BigDecimal = BigDecimal(0)
 ) : BaseEntity()
 
 

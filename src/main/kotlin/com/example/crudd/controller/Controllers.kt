@@ -1,13 +1,27 @@
 package com.example.crudd.controller
 
 import com.example.crudd.dto.*
+import com.example.crudd.exp.DemoExceptionHandler
 import com.example.crudd.service.CategoryService
 import com.example.crudd.service.ProductService
 import com.example.crudd.service.TransactionService
 import com.example.crudd.service.UserService
+import jakarta.validation.Valid
+import org.springframework.context.support.ResourceBundleMessageSource
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.ExceptionHandler
 
+@ControllerAdvice
+class ExceptionHandler(private val errorMessageSource: ResourceBundleMessageSource) {
+
+    @ExceptionHandler(DemoExceptionHandler::class)
+    fun handleAccountException(exception: DemoExceptionHandler): ResponseEntity<BaseMessage> {
+        return ResponseEntity.badRequest().body(exception.getErrorMessage(errorMessageSource))
+    }
+}
 
 @RestController
 @RequestMapping("/users")
@@ -15,7 +29,7 @@ class UserController(
     private val userService: UserService
 ) {
     @PostMapping("/add")
-    fun create(@RequestBody userCreateRequest: UserCreateRequest) = userService.create(userCreateRequest)
+    fun create(@Valid @RequestBody userCreateRequest: UserCreateRequest) = userService.create(userCreateRequest)
 
 
     @GetMapping("/{id}")
@@ -23,7 +37,7 @@ class UserController(
 
 
     @PutMapping("/update/{id}")
-    fun update(@PathVariable("id") id: Long, @RequestBody userUpdateRequest: UserUpdateRequest) =
+    fun update(@PathVariable("id") id: Long, @Valid @RequestBody userUpdateRequest: UserUpdateRequest) =
         userService.update(id, userUpdateRequest)
 
     @DeleteMapping("/delete/{id}")
@@ -34,7 +48,7 @@ class UserController(
         userService.getAll(PageRequest.of(page - 1, size))
 
     @PostMapping("/{userId}/add-balance")
-    fun addBalance(@RequestBody addBalance: AddBalance, @PathVariable userId: String) =
+    fun addBalance(@Valid @RequestBody addBalance: AddBalance, @PathVariable userId: String) =
         userService.addBalance(userId.toLong(), addBalance.balance)
 
     @GetMapping("/transaction/{userId}")
@@ -49,13 +63,13 @@ class CategoryController(
     private val categoryService: CategoryService
 ) {
     @PostMapping()
-    fun create(@RequestBody createRequest: CategoryCreateRequest) = categoryService.create(createRequest)
+    fun create(@Valid @RequestBody createRequest: CategoryCreateRequest) = categoryService.create(createRequest)
 
     @GetMapping("/{id}")
     fun getById(@PathVariable("id") id: Long) = categoryService.getOne(id)
 
     @PutMapping("/update/{id}")
-    fun update(@PathVariable("id") id: Long, @RequestBody categoryUpdateRequest: CategoryUpdateRequest) =
+    fun update(@PathVariable("id") id: Long, @Valid @RequestBody categoryUpdateRequest: CategoryUpdateRequest) =
         categoryService.update(id, categoryUpdateRequest)
 
     @DeleteMapping("/delete/{id}")
@@ -63,7 +77,7 @@ class CategoryController(
 
     @GetMapping("/pagenation")
     fun getAll(@RequestParam("page") page: Int, @RequestParam("size") size: Int) =
-        categoryService.getAll(PageRequest.of(page - 1, size))
+        categoryService.getAll(PageRequest.of(page - 1, size, Sort.by(Sort.Direction.ASC,"orderNumber")))
 }
 
 
@@ -73,10 +87,11 @@ class Product(
     private val productService: ProductService
 ) {
     @PostMapping
-    fun create(@RequestBody productCreateRequest: ProductCreateRequest) = productService.create(productCreateRequest)
+    fun create(@Valid @RequestBody productCreateRequest: ProductCreateRequest) =
+        productService.create(productCreateRequest)
 
     @PutMapping("/update/{id}")
-    fun update(@PathVariable("id") id: Long, @RequestBody updateRequest: ProductUpdateRequest) =
+    fun update(@PathVariable("id") id: Long, @Valid @RequestBody updateRequest: ProductUpdateRequest) =
         productService.update(id, updateRequest)
 
     @DeleteMapping("/delete/{id}")
@@ -98,7 +113,10 @@ class Transaction(
     private val transactionService: TransactionService
 ) {
     @PostMapping("/{userId}")
-    fun purchaseProduct(@PathVariable("userId") userId: Long, @RequestBody productTransaction: ProductTransaction) =
+    fun purchaseProduct(
+        @PathVariable("userId") userId: Long,
+        @Valid @RequestBody productTransaction: ProductTransaction
+    ) =
         transactionService.purchaseProduct(userId, productTransaction.productId, productTransaction.count)
 
     @GetMapping("/history/{userId}")

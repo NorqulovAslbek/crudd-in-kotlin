@@ -3,26 +3,27 @@ POST localhost:8080/category
 Content-Type: application/json
 
 {
-  "name": "Kompyuter",
+  "name": "Book",
   "description": "turli janrdagi kitoblar",
   "orderNumber": 1
 }
 
 ### get by id category
-GET localhost:8080/category/1
+GET localhost:8080/category/3
 Content-Type: application/json
 
 ### update category
-PUT localhost:8080/category/update/1
+PUT localhost:8080/category/update/3
 Content-Type: application/json
 
 {
   "description": "Adabiy kitoblar toplami",
-  "name": "Book"
+  "name": "Book",
+  "order": 2
 }
 
 ### delete by id
-DELETE localhost:8080/category/delete/1
+DELETE localhost:8080/category/delete/11
 Content-Type: application/json
 
 ### get all pagination
